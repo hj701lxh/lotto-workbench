@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f2557">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>大乐透统计工作台</title>
+<style>
+:root{
+  --bg:#f2f4fa; --card:#fff; --txt:#1a2233; --sub:#6b7590; --line:#e3e7f2;
+  --accent:#1c6ceb; --red:#e42c38; --blue:#1c6ceb;
+  --gA:#e4572e; --gB:#2e9e6b; --gC:#7b5ce4; --gD:#d9930d;
+  --chip:#eef2fb; --ok:#2e9e6b; --warn:#d9822b;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1226; --card:#171d3a; --txt:#e8ecfa; --sub:#8b95b5; --line:#273054; --chip:#212a4e; }
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0;}
+html,body{background:var(--bg); color:var(--txt); font-family:-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;}
+body{max-width:640px; margin:0 auto; padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+@media (orientation:landscape) and (min-width:700px){
+  body{max-width:100%; max-width:none; margin:0; padding:8px 12px calc(64px + env(safe-area-inset-bottom));}
+  nav{max-width:none;}
+}
+a{color:var(--accent);}
+/* 顶栏 */
+header{position:sticky; top:0; z-index:20; background:linear-gradient(135deg,#0f2557,#1b3b8f); color:#fff; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; display:flex; align-items:center; gap:10px; transition:transform .25s ease, opacity .25s ease; will-change:transform;}
+header.collapsed{transform:translateY(-100%); opacity:0; pointer-events:none;}
+header .logo{width:34px; height:34px; flex:none;}
+header h1{font-size:17px; font-weight:700; flex:1; letter-spacing:.5px;}
+header h1 small{display:block; font-size:10.5px; font-weight:400; opacity:.75; margin-top:2px;}
+.badge{font-size:10px; padding:3px 8px; border-radius:99px; background:rgba(255,255,255,.16); white-space:nowrap;}
+#refreshBtn{background:rgba(255,255,255,.14); border:0; color:#fff; width:32px; height:32px; border-radius:8px; font-size:16px; flex:none;}
+/* 主区 */
+main{padding:12px 12px 20px;}
+.page{display:none;} .page.active{display:block;}
+.card{background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 4px rgba(20,30,80,.06);}
+.card h3{font-size:14.5px; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
+.card h3 .tail{margin-left:auto; font-size:11px; color:var(--sub); font-weight:400;}
+.hint{font-size:11.5px; color:var(--sub); line-height:1.6;}
+/* 球 */
+.ball{display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-weight:700; flex:none;}
+.ball.r{background:linear-gradient(145deg,#f45b64,#d3212e); color:#fff; box-shadow:0 2px 5px rgba(212,33,46,.35), inset 0 -2px 4px rgba(0,0,0,.18);}
+.ball.b{background:linear-gradient(145deg,#4d9bff,#1257d6); color:#fff; box-shadow:0 2px 5px rgba(18,87,214,.35), inset 0 -2px 4px rgba(0,0,0,.18);}
+.ball.lg{width:42px; height:42px; font-size:19px;}
+.ball.md{width:30px; height:30px; font-size:14px;}
+.ball.sm{width:24px; height:24px; font-size:11.5px;}
+/* 最新期卡片 */
+.latest{background:linear-gradient(150deg,#122a5e,#1c3f96); color:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:0 4px 16px rgba(20,45,120,.35);}
+.latest .row1{display:flex; align-items:baseline; gap:8px; margin-bottom:12px;}
+.latest .issue{font-size:22px; font-weight:800; letter-spacing:1px;}
+.latest .date{font-size:12px; opacity:.8;}
+.latest .tag{margin-left:auto; font-size:10.5px; background:rgba(255,255,255,.15); padding:3px 9px; border-radius:99px;}
+.balls{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.latest .meta{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap;}
+.latest .meta span{font-size:10.5px; background:rgba(255,255,255,.12); padding:3px 9px; border-radius:8px;}
+.officialBox{margin-top:12px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); border-radius:10px; padding:12px;}
+.ob-title{font-size:12px; font-weight:700; opacity:.95; margin-bottom:8px;}
+.ob-stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px;}
+.ob-stats > div{background:rgba(255,255,255,.06); padding:6px 8px; border-radius:8px;}
+.ob-stats .ol{font-size:9.5px; opacity:.7; margin-bottom:2px;}
+.ob-stats .ov{font-size:14px; font-weight:700; color:#ffd0d6;}
+.ob-region{font-size:11px; opacity:.92; margin-bottom:6px; line-height:1.5;}
+.ob-prizes{display:grid; gap:4px;}
+.prizeRow{display:flex; justify-content:space-between; font-size:10.5px; padding:3px 6px; background:rgba(255,255,255,.04); border-radius:6px;}
+.prizeRow .pn{font-weight:700; opacity:.85;}
+.prizeRow .pc{opacity:.75;}
+.prizeRow .pm{color:#ffd0d6; font-weight:700;}
+/* 历史列表 */
+.search{display:flex; gap:8px; margin-bottom:10px;}
+.search input{flex:1; border:1px solid var(--line); background:var(--card); color:var(--txt); border-radius:10px; padding:10px 12px; font-size:14px; outline:none;}
+.search input:focus{border-color:var(--accent);}
+.drawRow{display:flex; align-items:center; gap:8px; padding:9px 2px; border-bottom:1px dashed var(--line); flex-wrap:wrap;}
+.drawRow .info{width:74px; flex:none;}
+.drawRow .info .iss{font-size:12.5px; font-weight:700;}
+.drawRow .info .dt{font-size:10px; color:var(--sub);}
+.drawRow .nums{display:flex; gap:4px; align-items:center; flex-wrap:wrap;}
+.moreBtn{display:block; width:100%; margin-top:10px; padding:11px; border:0; border-radius:10px; background:var(--chip); color:var(--accent); font-size:13.5px; font-weight:600;}
+/* segment / tabs */
+.seg{display:flex; background:var(--chip); border-radius:10px; padding:3px; margin-bottom:12px;}
+.seg button{flex:1; border:0; background:transparent; color:var(--sub); padding:8px 4px; border-radius:8px; font-size:12.5px; font-weight:600;}
+.seg button.on{background:var(--card); color:var(--accent); box-shadow:0 1px 4px rgba(0,0,0,.10);}
+.subtabs{display:flex; gap:8px; margin-bottom:12px;}
+.subtabs button{flex:1; border:1px solid var(--line); background:var(--card); color:var(--sub); padding:9px; border-radius:10px; font-size:13px; font-weight:600;}
+.subtabs button.on{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb,var(--accent) 8%, var(--card));}
+/* 选号网格 */
+.zoneLbl{font-size:11px; color:var(--sub); margin:8px 0 6px; display:flex; gap:6px; align-items:center;}
+.zoneLbl i{width:8px; height:8px; border-radius:50%; display:inline-block;}
+.pickGrid{display:grid; grid-template-columns:repeat(8,1fr); gap:7px;}
+.pick{aspect-ratio:1; border-radius:50%; border:2px solid var(--line); background:var(--card); color:var(--txt); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+.pick.z0{border-color:#f0a9ad;} .pick.z1{border-color:#f0c98a;} .pick.z2{border-color:#9fbdf5;}
+.pick.on{background:linear-gradient(145deg,#f45b64,#d3212e); border-color:transparent; color:#fff; box-shadow:0 2px 8px rgba(212,33,46,.4);}
+
+/* 大乐透：选号分区（前后区） */
+.pickZone{margin:8px 0 6px;}
+.pickZone .pzh{font-size:11.5px; color:var(--sub); margin:0 0 6px;}
+.pickZone .pzg{display:grid; grid-template-columns:repeat(12,1fr); gap:6px;}
+.pickZone .pzg{grid-template-columns:repeat(12,1fr);}  /* 前区 35 个：12 列 3 行 = 36 格,后区 12 个正好 1 行 */
+.pickZone .pzg .ballpick{aspect-ratio:1; border-radius:50%; border:2px solid var(--line); background:var(--card); color:var(--txt); font-size:13px; font-weight:700; padding:0; min-width:0; line-height:1;}
+.pickZone .pzg .ballpick.r{border-color:#f0a9ad;}
+.pickZone .pzg .ballpick.b{border-color:#9fbdf5;}
+.pickZone .pzg .ballpick.r.on{background:linear-gradient(145deg,#f45b64,#d3212e); color:#fff; border-color:transparent; box-shadow:0 2px 8px rgba(212,33,46,.4);}
+.pickZone .pzg .ballpick.b.on{background:linear-gradient(145deg,#4d9bff,#1257d6); color:#fff; border-color:transparent; box-shadow:0 2px 8px rgba(18,87,214,.4);}
+/* 前区/后区分隔圆点 */
+.ball.sep{width:14px; height:14px; background:transparent; box-shadow:none; color:rgba(255,255,255,.6); font-size:14px; font-weight:700;}
+.queryBar{display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap;}
+.selInfo{font-size:11.5px; color:var(--sub); flex:1;}
+.btn{border:0; border-radius:10px; padding:11px 22px; font-size:14px; font-weight:700;}
+.btn.primary{background:linear-gradient(135deg,#2e7bf0,#1c4fd8); color:#fff; box-shadow:0 3px 10px rgba(30,90,220,.35);}
+.btn.ghost{background:var(--chip); color:var(--sub);}
+.btn:disabled{opacity:.45;}
+/* 查询结果 */
+.resHead{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.resHead .big{font-size:26px; font-weight:800; color:var(--accent);}
+.resHead .desc{font-size:11.5px; color:var(--sub); line-height:1.5;}
+.hitItem{border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:10px;}
+.hitItem .cur,.hitItem .nxt{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.hitItem .nxt{margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
+.hitItem .lbl{font-size:10px; padding:2px 7px; border-radius:6px; flex:none;}
+.hitItem .cur .lbl{background:var(--chip); color:var(--sub);}
+.hitItem .nxt .lbl{background:color-mix(in srgb,var(--accent) 12%, var(--card)); color:var(--accent);}
+.hitItem .idx{font-size:11px; color:var(--sub); width:44px; flex:none;}
+.hitItem .nonext{font-size:11.5px; color:var(--warn); margin-top:8px;}
+/* 统计页 */
+.statGrid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.statBox{background:var(--chip); border-radius:10px; padding:10px;}
+.statBox .v{font-size:19px; font-weight:800;}
+.statBox .v small{font-size:11px; font-weight:400; color:var(--sub);}
+.statBox .k{font-size:11px; color:var(--sub); margin-top:2px;}
+.barRow{display:flex; align-items:center; gap:8px; margin:7px 0;}
+.barRow .bk{width:64px; font-size:11.5px; color:var(--sub); text-align:right; flex:none;}
+.barRow .bar{flex:1; height:14px; background:var(--chip); border-radius:7px; overflow:hidden;}
+.barRow .bar i{display:block; height:100%; background:linear-gradient(90deg,#2e7bf0,#1c4fd8); border-radius:7px;}
+.barRow .bv{width:70px; font-size:11px; color:var(--sub); flex:none;}
+/* 走势页 */
+.trendTable{width:100%; border-collapse:collapse; font-size:12px;}
+.trendTable th{font-size:11px; color:var(--sub); font-weight:600; padding:6px 4px; border-bottom:1px solid var(--line); text-align:center;}
+.trendTable td{padding:7px 4px; border-bottom:1px solid var(--line); text-align:center;}
+.trendTable td.num{font-weight:700;}
+.hotTag{color:var(--red); font-weight:700;}
+.coldTag{color:var(--gA); font-weight:700;}
+/* 蓝球四分组 */
+.groupCard{border-radius:12px; padding:12px; margin-bottom:10px; border-left:5px solid; background:var(--card);}
+.groupCard.gA{border-color:var(--gA);} .groupCard.gB{border-color:var(--gB);}
+.groupCard.gC{border-color:var(--gC);} .groupCard.gD{border-color:var(--gD);}
+.groupCard .gHead{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+.gDot{width:26px; height:26px; border-radius:8px; color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; flex:none;}
+.gA .gDot{background:var(--gA);} .gB .gDot{background:var(--gB);} .gC .gDot{background:var(--gC);} .gD .gDot{background:var(--gD);}
+.groupCard .gName{font-weight:700; font-size:14px;}
+.groupCard .gNums{font-size:11px; color:var(--sub);}
+.groupCard .gStats{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;}
+.groupCard .gStats div{background:var(--chip); border-radius:8px; padding:6px 4px; text-align:center;}
+.groupCard .gStats .v{font-size:14px; font-weight:700;}
+.groupCard .gStats .k{font-size:9.5px; color:var(--sub);}
+.flowRow{display:flex; gap:5px; flex-wrap:wrap; align-items:center;}
+.flowCell{width:34px; text-align:center;}
+.flowCell .fc{height:26px; border-radius:7px; color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;}
+.flowCell .fi{font-size:8.5px; color:var(--sub); margin-top:2px;}
+.fc.A{background:var(--gA);} .fc.B{background:var(--gB);} .fc.C{background:var(--gC);} .fc.D{background:var(--gD);}
+.legend{display:flex; gap:10px; font-size:10.5px; color:var(--sub); margin:8px 0; flex-wrap:wrap;}
+.legend i{width:9px; height:9px; border-radius:3px; display:inline-block; margin-right:3px;}
+/* 空状态/加载 */
+.loading{text-align:center; color:var(--sub); padding:40px 0; font-size:13px;}
+/* toast */
+#toast{position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px); background:rgba(20,28,58,.92); color:#fff; padding:10px 18px; border-radius:99px; font-size:13px; opacity:0; transition:.25s; pointer-events:none; z-index:99; white-space:nowrap;}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+/* 底部tab */
+nav{position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:640px; background:var(--card); border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom); z-index:30;}
+nav button{flex:1; border:0; background:none; color:var(--sub); padding:8px 0 7px; font-size:10.5px; display:flex; flex-direction:column; align-items:center; gap:3px;}
+nav button svg{width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+nav button.on{color:var(--accent); font-weight:700;}
+/* modal */
+.modal{position:fixed; inset:0; background:rgba(8,12,30,.6); z-index:100; display:none; align-items:flex-end; justify-content:center;}
+.modal.show{display:flex;}
+.modal .sheet{background:var(--card); border-radius:18px 18px 0 0; width:100%; max-width:640px; padding:18px 18px calc(22px + env(safe-area-inset-bottom));}
+.modal h3{font-size:16px; margin-bottom:12px;}
+.modal ol{padding-left:20px; font-size:13.5px; line-height:2; color:var(--txt);}
+.modal .close{margin-top:14px; width:100%; padding:12px; border:0; border-radius:12px; background:var(--chip); color:var(--txt); font-size:14px; font-weight:600;}
+#errbox{display:none;}
+footer{text-align:center; font-size:10px; color:var(--sub); padding:6px 0 14px; line-height:1.7;}
+
+/* 号码矩阵视图 */
+.mx-toolbar{display:flex; gap:8px; margin-bottom:10px; align-items:center;}
+.mx-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:10px; background:var(--card); position:relative;}
+.mx-table{border-collapse:collapse; font-size:11.5px; white-space:nowrap; table-layout:fixed;}
+.mx-table th, .mx-table td{width:30px; height:30px; text-align:center; vertical-align:middle; border-right:1px solid var(--line); padding:0; box-sizing:border-box;}
+.mx-table thead th{position:sticky; top:0; background:var(--card); z-index:3; border-bottom:1px solid var(--line); height:38px; line-height:1.05; padding:2px 0;}
+.mx-table thead th .mx-num{font-weight:700; font-size:11.5px;}
+.mx-table thead th .mx-miss{font-size:9px; color:var(--sub); font-weight:400; margin-top:1px;}
+.mx-table thead th.r{color:#c13544;}
+.mx-table thead th.gA{color:var(--gA);} .mx-table thead th.gB{color:var(--gB);} .mx-table thead th.gC{color:var(--gC);} .mx-table thead th.gD{color:var(--gD);}
+.mx-table tbody th{position:sticky; left:0; background:var(--card); z-index:2; font-size:11px; font-weight:700; padding:0 6px; min-width:52px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--txt);}
+.mx-table tbody th .mx-date{font-weight:400; font-size:9px; color:var(--sub);}
+.mx-table thead th.mx-issue-h{position:sticky; top:0; left:0; z-index:4; min-width:52px; background:var(--card); border-right:1px solid var(--line);}
+.mx-table .mx-sep{background:var(--line); width:4px; padding:0; min-width:4px; max-width:4px;}
+.mx-table .mx-cell{position:relative; padding:0; min-width:30px; max-width:30px;}
+.mx-ball{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-weight:800; font-size:10.5px; color:#fff; line-height:1;}
+.mx-ball.r.hit{background:linear-gradient(145deg,#f45b64,#d3212e); box-shadow:0 1px 3px rgba(212,33,46,.4);}
+.mx-ball.r.repeat{background:#ffd6dc; color:#a01b27; box-shadow:inset 0 0 0 1.5px #e42c38;}
+.mx-ball.b.hit{background:linear-gradient(145deg,#4d9bff,#1257d6); box-shadow:0 1px 3px rgba(18,87,214,.4);}
+.mx-ball.b.repeat{background:#cfe2ff; color:#1257d6; box-shadow:inset 0 0 0 1.5px #1c6ceb;}
+.mx-legend{display:flex; gap:12px; font-size:10.5px; color:var(--sub); margin-top:8px; flex-wrap:wrap; align-items:center;}
+.mx-legend .mx-ball{width:18px; height:18px; font-size:9.5px; vertical-align:middle; margin-right:3px;}
+
+/* 数字列表走势 —— 参考 500 走势图样式：cell 宽松，球只占 60%，号码居中清晰 */
+.mx2-table{border-collapse:collapse; font-size:var(--mx-font,11px); table-layout:fixed; width:max-content;}
+.mx2-table th, .mx2-table td{width:var(--mx-cell,32px); height:var(--mx-cell,32px); padding:0; text-align:center; vertical-align:middle; box-sizing:border-box; border-right:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--sub);}
+.mx2-table thead th{background:#e6eaf3; color:#7c8499; font-weight:600; font-size:9.5px;}
+.mx2-table thead .grp-h{background:#dde3ef; font-weight:700; color:#5a6378; font-size:10.5px; height:24px; border-bottom:2px solid #b0bcd0;}
+.mx2-table thead .mx2-th{height:22px; font-size:10px; padding:0;}
+.mx2-table thead .gA{color:var(--gA);} .mx2-table thead .gB{color:var(--gB);} .mx2-table thead .gC{color:var(--gC);} .mx2-table thead .gD{color:var(--gD);}
+/* 大乐透前区5区颜色 */
+.mx2-table thead .z0{color:#e4572e;} .mx2-table thead .z1{color:#c8901a;} .mx2-table thead .z2{color:#2e9e6b;} .mx2-table thead .z3{color:#7b5ce4;} .mx2-table thead .z4{color:#1c6ceb;}
+.mx2-table thead .mx-issue-h{position:sticky; top:0; left:0; z-index:5; background:#dde3ef; min-width:56px; color:#5a6378;}
+.mx2-table tfoot .mx-issue-h{position:sticky; bottom:0; left:0; z-index:4; background:#e6eaf3; min-width:56px; color:#5a6378;}
+.mx2-table tfoot .mx2-th, .mx2-table tfoot .deriv-h{position:sticky; bottom:0; background:#e6eaf3; color:var(--sub); font-size:10px; font-weight:700;}
+.mx2-table tfoot .mx-sep{background:transparent; border:none;}
+.mx2-table thead .mx-sep{background:transparent; border:none;}
+.mx2-table thead .deriv-h{background:#dde3ef; min-width:48px; color:#5a6378; font-size:10px;}
+.mx2-table tbody th.mx-issue{position:sticky; left:0; z-index:3; background:var(--card); color:var(--txt); font-size:10px; font-weight:700; padding:0 4px; min-width:56px; border-right:1px solid #b0bcd0;}
+.mx2-table tbody th.mx-issue .mx-date{font-weight:400; font-size:8.5px; color:var(--sub);}
+.mx2-table .mx2-cell{position:relative; font-size:10.5px; padding:0;}
+.mx2-table .mx2-cell.hit{background:#fff5f6;}
+.mx2-table .mx2-blank{background:#f6f7fa; border-bottom:1px solid var(--line); border-right:1px solid var(--line);}
+.mx2-table .mx2-sep{background:transparent; width:2px; min-width:2px; max-width:2px; padding:0; border-right:1px solid #b0bcd0;}
+.mx2-table .deriv-c{background:#f6f7fa; font-weight:700; color:#3a4258; min-width:48px;}
+.mx2-table .deriv-c.oe-balanced{background:#e0f3e5; color:#2e7d4d;}
+.mx2-table .deriv-c.oe-imbal{background:#ffe5d6; color:#a14a1a;}
+.mx2-table .deriv-c.z-balanced{background:#fff4d6; color:#8a6611;}
+.mx2-table .deriv-c.z-imbal{background:#ffe5d6; color:#a14a1a;}
+.mx2-ball{display:inline-flex; align-items:center; justify-content:center; width:var(--mx-ball,15px); height:var(--mx-ball,15px); border-radius:50%; vertical-align:middle; font-weight:700; line-height:1; font-size:var(--mx-ballfont,8.5px);}
+.mx2-ball.r{background:rgba(228,44,56,.85); color:#fff; box-shadow:0 0 0 1px rgba(228,44,56,.4), 0 1px 2px rgba(212,33,46,.3);}
+.mx2-ball.b{background:rgba(28,108,235,.85); color:#fff; box-shadow:0 0 0 1px rgba(28,108,235,.4), 0 1px 2px rgba(18,87,214,.3);}
+.mx-foot-labels th{position:sticky; bottom:0; background:var(--card); border-top:2px solid var(--line); font-weight:700; color:var(--sub); padding-top:6px;}
+.mx2-line{position:absolute; top:0; left:0; pointer-events:none; z-index:2; overflow:visible;}
+.mx2-table .mx2-cell.hit{position:relative; z-index:3;} /* 让 hit 蓝球浮在折线之上 */
+.mx-wrap .mx2-table{position:relative; z-index:1;}
+/* SVG 用 inline width/height 作为自然尺寸，不拉伸：保证蓝球线 1:1 落在蓝球格中心 */
+
+/* 20个走势图菜单网格 */
+.trend-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.trend-tile{position:relative; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; cursor:pointer; transition:.15s;}
+.trend-tile:active{background:var(--chip); transform:scale(.98);}
+.trend-tile .tn{font-size:14px; font-weight:700; color:var(--txt); margin-bottom:2px;}
+.trend-tile .td{font-size:10.5px; color:var(--sub); line-height:1.4;}
+.trend-tile .tarr{position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:18px; color:var(--accent); opacity:.5;}
+/* 子走势表的特殊色 */
+.bsize-s{color:#5a6378;} .bsize-b{color:#5a6378;}
+.boe-o{color:#5a6378;} .boe-e{color:#5a6378;}
+</style>
+</head>
+<body>
+<header>
+  <svg class="logo" viewBox="0 0 40 40"><circle cx="9" cy="13" r="5" fill="#e42c38"/><circle cx="16.5" cy="13" r="5" fill="#e42c38"/><circle cx="24" cy="13" r="5" fill="#e42c38"/><circle cx="31.5" cy="13" r="5" fill="#e42c38"/><circle cx="14" cy="9.5" r="1.4" fill="#ffb3b8" opacity=".85"/><circle cx="21.5" cy="9.5" r="1.4" fill="#ffb3b8" opacity=".85"/><circle cx="29" cy="9.5" r="1.4" fill="#ffb3b8" opacity=".85"/><circle cx="19" cy="27" r="6.5" fill="#2e7bf0"/><circle cx="29" cy="27" r="6.5" fill="#2e7bf0"/><circle cx="16" cy="24" r="1.7" fill="#bcd9ff" opacity=".85"/><circle cx="26" cy="24" r="1.7" fill="#bcd9ff" opacity=".85"/></svg>
+  <h1>大乐透统计工作台<small id="srcInfo">数据加载中…</small></h1>
+  <button id="refreshBtn" title="刷新">⟳</button>
+</header>
+
+<main>
+  <!-- ===== 首页：开奖 ===== -->
+  <section class="page active" id="page-home">
+    <div id="latestBox"><div class="loading">正在加载开奖数据…</div></div>
+    <div class="card">
+      <h3>历史开奖 <span class="tail" id="drawCount"></span></h3>
+      <div class="search">
+        <input id="searchInput" type="search" inputmode="numeric" placeholder="输入期号筛选，如 26102 或 102">
+        <button class="btn ghost" id="clearSearch" style="padding:10px 14px;">清除</button>
+      </div>
+      <div id="drawList"></div>
+      <button class="moreBtn" id="moreBtn">加载更多</button>
+    </div>
+  </section>
+
+  <!-- ===== 查询页 ===== -->
+  <section class="page" id="page-query">
+    <div class="card">
+        <h3>条件查询 <span class="tail" id="modeTip">前区包含所选全部号码</span></h3>
+        <div class="seg" id="modeSeg">
+          <button data-mode="include" class="on">包含模式</button>
+          <button data-mode="exact">精确模式</button>
+        </div>
+        <p class="hint" id="modeDesc">包含模式：开奖前区<b>同时包含</b>所有勾选号码即可命中，例如勾 1、3 → 只要前区里有 1 也有 3 就算。</p>
+      <div id="pickArea"></div>
+      <div class="queryBar">
+        <div class="selInfo" id="selInfo">未选号</div>
+        <button class="btn ghost" id="clearPick">清空</button>
+        <button class="btn primary" id="queryBtn" disabled>查询</button>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
+        <div class="hint" style="margin-bottom:6px">预选行（最多 3 组选号，点击切换/保存）</div>
+        <div id="preset-1-lab" class="hint">预选行1：空</div>
+        <button class="btn ghost" id="preset-1" style="margin:4px 0;width:100%;font-size:12px;padding:8px">· 预选行1</button>
+        <div id="preset-2-lab" class="hint">预选行2：空</div>
+        <button class="btn ghost" id="preset-2" style="margin:4px 0;width:100%;font-size:12px;padding:8px">· 预选行2</button>
+        <div id="preset-3-lab" class="hint">预选行3：空</div>
+        <button class="btn ghost" id="preset-3" style="margin:4px 0;width:100%;font-size:12px;padding:8px">· 预选行3</button>
+      </div>
+    </div>
+    <div id="queryResult"></div>
+  </section>
+
+  <!-- ===== 统计页 ===== -->
+  <section class="page" id="page-stats">
+    <div class="card">
+      <h3>基本统计 <span class="tail" id="statsRangeLbl"></span></h3>
+      <div class="seg" id="rangeSeg">
+        <button data-n="30">近30期</button>
+        <button data-n="50">近50期</button>
+        <button data-n="100">近100期</button>
+        <button data-n="0" class="on">全部</button>
+      </div>
+      <div id="statsBox"><div class="loading">统计中…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== 走势页 ===== -->
+  <section class="page" id="page-trend">
+    <div class="card">
+      <h3>号码走势 <span class="tail" id="trendRangeLbl"></span></h3>
+      <div class="seg" id="trendSeg">
+        <button data-t="basic" class="on">基本走势</button>
+        <button data-t="front">前区走势</button>
+        <button data-t="back">后区走势</button>
+      </div>
+      <div id="trendBox"><div class="loading">统计中…</div></div>
+    </div>
+  </section>
+
+  <footer>
+    数据来源：500彩票网（公开数据，已双源交叉校验）<br>
+    统计结果仅供学习参考，不构成购彩建议 · 理性购彩
+  </footer>
+</main>
+
+<nav>
+  <button data-page="home" class="on"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg>开奖</button>
+  <button data-page="query"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>查询</button>
+  <button data-page="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>统计</button>
+  <button data-page="trend"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 6-8"/><path d="M3 21h18"/></svg>走势</button>
+  <button id="installBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>桌面</button>
+</nav>
+
+<div class="modal" id="installModal">
+  <div class="sheet">
+    <h3>添加到手机桌面</h3>
+    <ol>
+      <li><b>iPhone（Safari）</b>：点浏览器底部「分享」按钮 → 选「添加到主屏幕」</li>
+      <li><b>安卓（Chrome/Edge）</b>：点浏览器右上角「⋮」菜单 → 选「添加到主屏幕 / 安装应用」</li>
+      <li>桌面图标进入即为全屏应用，离线也能查历史数据</li>
+    </ol>
+    <button class="close" id="closeModal">知道了</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="errbox"></div>
+
+<script>
+// 版本号硬编码：保证用户拿到最新代码（绕过浏览器/微信缓存）
+window.DLT_VERSION = '20260908-initial';
+</script>
+<script src="stats.js?v=20260908a"></script>
+<script src="app.js?v=20260908a"></script>
+<script>
+// 启动时清掉所有 Service Worker 缓存（避免老版本 app.js 被持续使用）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister().catch(() => {}));
+  });
+  if (window.caches) {
+    caches.keys().then((ks) => ks.forEach((k) => caches.delete(k)));
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f2557">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>彩票工作台</title>
+<style>
+:root{
+  --bg:#f2f4fa; --card:#fff; --txt:#1a2233; --sub:#6b7590; --line:#e3e7f2;
+  --accent:#1c6ceb; --red:#e42c38; --blue:#1c6ceb;
+  --ssq:#e42c38; --dlt:#1c6ceb;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1226; --card:#171d3a; --txt:#e8ecfa; --sub:#8b95b5; --line:#273054; }
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0;}
+html,body{background:var(--bg); color:var(--txt); font-family:-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; height:100%;}
+body{max-width:640px; margin:0 auto; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden;}
+a{color:var(--accent);}
+
+.lotto-bar{
+  flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:10px 12px calc(8px + env(safe-area-inset-top));
+  padding-top:calc(10px + env(safe-area-inset-top));
+  background:var(--card); border-bottom:1px solid var(--line); position:relative; z-index:5;
+}
+.lotto-bar .brand{position:absolute; left:14px; top:50%; transform:translateY(-50%); font-weight:800; font-size:14px; letter-spacing:.5px; color:var(--txt); opacity:.85;}
+.lotto-bar .brand b{color:var(--accent);}
+.seg{
+  display:inline-flex; background:var(--chip,#eef2fb); border-radius:999px; padding:3px; gap:2px;
+}
+.seg button{
+  border:0; background:transparent; color:var(--sub); font-size:13px; font-weight:700;
+  padding:7px 16px; border-radius:999px; cursor:pointer; transition:all .2s;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.seg button.on{background:var(--card); color:var(--txt); box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.seg button .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+.seg button[data-lotto="ssq"] .dot{background:var(--ssq);}
+.seg button[data-lotto="dlt"] .dot{background:var(--dlt);}
+
+.frame-wrap{
+  flex:1 1 auto; position:relative; overflow:hidden;
+  background:var(--bg);
+}
+.frame-wrap iframe{
+  position:absolute; inset:0; width:100%; height:100%; border:0; background:var(--bg);
+}
+.frame-wrap iframe.hidden{display:none;}
+
+.hint{
+  flex:0 0 auto; padding:6px 12px calc(6px + env(safe-area-inset-bottom));
+  text-align:center; color:var(--sub); font-size:11px; background:var(--card); border-top:1px solid var(--line);
+}
+</style>
+</head>
+<body>
+
+<div class="lotto-bar">
+  <div class="brand">彩票<b>工作台</b></div>
+  <div class="seg" id="lottoSeg" role="tablist">
+    <button data-lotto="ssq" role="tab" aria-selected="true">
+      <span class="dot"></span>双色球
+    </button>
+    <button data-lotto="dlt" role="tab" aria-selected="false">
+      <span class="dot"></span>大乐透
+    </button>
+  </div>
+</div>
+
+<div class="frame-wrap" id="frameWrap">
+  <iframe id="ssqFrame" title="双色球工作台" src="ssq/index.html"></iframe>
+  <iframe id="dltFrame" title="大乐透工作台" src="dlt/index.html" class="hidden"></iframe>
+</div>
+
+<div class="hint">同一 PWA 装到桌面即可，左上角随时切换工作台</div>
+
+<script>
+(function(){
+  const seg = document.getElementById('lottoSeg');
+  const ssqF = document.getElementById('ssqFrame');
+  const dltF = document.getElementById('dltFrame');
+  const buttons = seg.querySelectorAll('button');
+  const STORAGE_KEY = 'lotto.active';
+
+  function setLotto(name, opts){
+    opts = opts || {};
+    const ssqOn = name === 'ssq';
+    buttons.forEach((b) => {
+      const on = b.dataset.lotto === name;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    ssqF.classList.toggle('hidden', !ssqOn);
+    dltF.classList.toggle('hidden', ssqOn);
+    try { localStorage.setItem(STORAGE_KEY, name); } catch (e) {}
+    if (!opts.silent) {
+      history.replaceState(null, '', '#' + name);
+    }
+  }
+
+  function detectInitial(){
+    const h = (location.hash || '').replace('#','').toLowerCase();
+    if (h === 'ssq' || h === 'dlt') return h;
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s === 'ssq' || s === 'dlt') return s;
+    } catch (e) {}
+    return 'ssq';
+  }
+
+  seg.addEventListener('click', (e) => {
+    const t = e.target.closest('button[data-lotto]');
+    if (!t) return;
+    setLotto(t.dataset.lotto);
+  });
+
+  // 双工作台各自有独立的 Service Worker（ssq/、dlt/ 各自一份 sw.js），
+  // 不会冲突。顶部入口不注册 SW，让子工作台自己管自己的缓存。
+  // 但如果之前某个版本在顶层注册过 SW（scope=/），这里主动清理。
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => {
+        if (r.scope === location.origin + '/' || r.scope.endsWith('/sw.js')) r.unregister();
+      });
+    });
+  }
+
+  setLotto(detectInitial(), { silent: true });
+  window.addEventListener('hashchange', () => {
+    const h = (location.hash || '').replace('#','').toLowerCase();
+    if ((h === 'ssq' || h === 'dlt') && h !== (ssqF.classList.contains('hidden') ? 'dlt' : 'ssq')) {
+      setLotto(h);
+    }
+  });
+})();
+</script>
+</body>
+</html>
